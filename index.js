@@ -15,25 +15,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
-// app.use((req, res, next) => {
-//   res.setHeader(
-//     "Content-Security-Policy",
-//     [
-//       "default-src 'self'",
-//       "font-src 'self' https://fonts.gstatic.com",
-//       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-//       "img-src 'self' data:",
-//       "script-src 'self' https://vercel.live",
-//       "script-src-elem 'self' https://vercel.live",
-//       "connect-src 'self' https://vercel.live"
-//     ].join("; ")
-//   );
-//   next();
-// });
-
-
-
 // MongoDB connection URI (keep your existing)
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wzcn8fz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 const client = new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true } });
@@ -131,22 +112,6 @@ function dedupeVaccinationsArray(vaccinations = []) {
   return unique;
 }
 
-
-
-
-let _dbConnected = false;
-async function ensureDbConnected() {
-  if (_dbConnected) return;
-  try {
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    _dbConnected = true;
-    console.log("MongoDB connected (lazy)");
-  } catch (err) {
-    console.error("MongoDB lazy connect failed:", err);
-    throw err;
-  }
-}
 // Main run
 async function run() {
   try {
@@ -726,23 +691,10 @@ async function run() {
 
 run().catch(console.dir);
 
-
 app.get("/", (req, res) => {
   res.send("PawPalace server running");
 });
 
-app.get("/test", (req, res) => {
-  res.send("this is testing");
+app.listen(port, () => {
+  console.log(`Server running on port: ${port}`);
 });
-
-
-// if (process.env.NODE_ENV !== "production") {
-//   app.listen(5000, () => console.log("Server running locally"));
-// }
-
-app.listen(5000, () => console.log("Server running locally"));
-
-
-
-module.exports = app;
-
