@@ -5,8 +5,8 @@ const jwt = require('jsonwebtoken');
 require("dotenv").config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
-const cron = require("node-cron"); // <-- added
-const schedule = require("node-schedule"); // (kept if you still use node-schedule elsewhere)
+const cron = require("node-cron");
+const schedule = require("node-schedule"); // kept in case used elsewhere
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const port = process.env.PORT || 5000;
@@ -14,6 +14,23 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "font-src https://fonts.gstatic.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data:",
+      "script-src 'self'",
+      "connect-src 'self'"
+    ].join("; ")
+  );
+  next();
+});
+
 
 // MongoDB connection URI (keep your existing)
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wzcn8fz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -28,11 +45,42 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// ----------------------
 // Vaccine intervals configuration (in days)
+// Expanded to cover vaccines used in frontend AddPet.jsx
+// ----------------------
 const vaccineIntervals = {
-  Rabies: 365,
-  Distemper: 1095,
-  Parvovirus: 365
+  // DOG
+  "Rabies": 365,
+  "Canine Distemper Virus": 365,
+  "Canine Adenovirus (Hepatitis)": 365,
+  "Canine Parvovirus": 365,
+  "Canine Parainfluenza Virus": 365,
+  "Bordetella (Kennel Cough)": 180,
+  "Leptospirosis": 365,
+  "Canine Influenza": 365,
+  "Lyme Disease": 365,
+
+  // CAT
+  "Feline Viral Rhinotracheitis (FHV-1)": 365,
+  "Feline Calicivirus (FCV)": 365,
+  "Feline Panleukopenia (FPV)": 365,
+  "Feline Leukemia Virus (FeLV)": 365,
+  "Feline Immunodeficiency Virus (FIV)": 365,
+  "Chlamydophila felis": 365,
+
+  // RABBIT
+  "Myxomatosis": 365,
+  "Rabbit Haemorrhagic Disease (RHDV1 & RHDV2)": 365,
+
+  // BIRD (examples)
+  "Avian Polyomavirus (rare cases)": 365,
+  "Pigeon Pox (specific species)": 365,
+
+  // FISH (rare / placeholders)
+  // if you don't use these, it's OK — having them avoids undefined lookup
+  "Spring Viremia of Carp (SVC)": 365,
+  "Aeromonas Vaccine": 365
 };
 
 // Normalize intervals for case-insensitive lookup
@@ -61,6 +109,27 @@ function sendReminderEmail(to, petName, vaccineType, vaccineDate) {
   });
 }
 
+// ----------------------
+// Helper: remove duplicate vaccinations (case-insensitive) and normalize shape
+// Accepts array of { vaccineType, date } where vaccineType is string
+// ----------------------
+function dedupeVaccinationsArray(vaccinations = []) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const v of vaccinations) {
+    if (!v || !v.vaccineType) continue;
+    const key = String(v.vaccineType).trim().toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      // store original casing as provided, but ensure date exists (leave validation to caller)
+      unique.push({ vaccineType: String(v.vaccineType).trim(), date: v.date });
+    }
+  }
+  return unique;
+}
+
+// Main run
 async function run() {
   try {
     await client.connect();
@@ -75,9 +144,6 @@ async function run() {
 
     // ======================
     // Vaccination Reminder Setup (uses normalizedIntervals)
-    // - This function checks each pet's vaccinations,
-    //   computes next due date per vaccine type based on last given date + interval,
-    //   and sends reminder email to accepted adopter (if any) and buyer (if any).
     // ======================
     async function sendVaccinationReminders() {
       try {
@@ -96,7 +162,7 @@ async function run() {
         }).toArray();
 
         for (const pet of pets) {
-          // For each defined vaccine type interval (Rabies, Distemper, Parvovirus, ...)
+          // For each defined vaccine type interval
           for (const [vaccineKeyLower, intervalDays] of Object.entries(normalizedIntervals)) {
             // Find all entries for this vaccine type (case-insensitive)
             const entriesForType = (pet.vaccinations || []).filter(v => {
@@ -140,7 +206,6 @@ async function run() {
               }
 
               // 2) Notify buyer (if pet was sold and purchase record exists)
-              // We assume purchasesCollection stores documents with petId and buyerEmail
               const purchase = await purchasesCollection.findOne({
                 petId: pet._id.toString()
               });
@@ -282,6 +347,13 @@ async function run() {
           petData.price = Number(petData.price);  // ✅ Force price to be a Number
         }
 
+        // Ensure vaccinations array shape & remove duplicates (server-side safety)
+        if (petData.vaccinations && Array.isArray(petData.vaccinations)) {
+          petData.vaccinations = dedupeVaccinationsArray(petData.vaccinations);
+        } else {
+          petData.vaccinations = [];
+        }
+
         const pet = {
           ...petData,
           status: 'pending',
@@ -290,7 +362,6 @@ async function run() {
         };
 
         if (!pet.purpose) pet.purpose = 'pet';
-        if (!pet.vaccinations) pet.vaccinations = [];
 
         const result = await petCollection.insertOne(pet);
         res.send(result);
@@ -342,7 +413,6 @@ async function run() {
       res.send(result);
     });
 
-    //newly added
     // Toggle adopted (admin)
     app.put('/pet/toggleAdoption/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -377,9 +447,16 @@ async function run() {
       }
     });
 
+    // Update whole pet
     app.patch('/updatePet/:id', async (req, res) => {
       const id = req.params.id;
       const petData = req.body;
+
+      // server-side deduplication for vaccinations if present
+      if (petData.vaccinations && Array.isArray(petData.vaccinations)) {
+        petData.vaccinations = dedupeVaccinationsArray(petData.vaccinations);
+      }
+
       const result = await petCollection.updateOne(
         { _id: new ObjectId(id) },
         { $set: { ...petData } }
@@ -393,9 +470,12 @@ async function run() {
       const { vaccinations } = req.body; // expects array of {vaccineType, date}
       if (!Array.isArray(vaccinations)) return res.status(400).send({ message: 'Invalid vaccinations array' });
 
+      // dedupe server-side
+      const cleaned = dedupeVaccinationsArray(vaccinations);
+
       const result = await petCollection.updateOne(
         { _id: new ObjectId(id) },
-        { $set: { vaccinations } }
+        { $set: { vaccinations: cleaned } }
       );
       res.send(result);
     });
