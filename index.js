@@ -16,21 +16,21 @@ app.use(cors());
 app.use(express.json());
 
 
-app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "font-src 'self' https://fonts.gstatic.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data:",
-      "script-src 'self' https://vercel.live",
-      "script-src-elem 'self' https://vercel.live",
-      "connect-src 'self' https://vercel.live"
-    ].join("; ")
-  );
-  next();
-});
+// app.use((req, res, next) => {
+//   res.setHeader(
+//     "Content-Security-Policy",
+//     [
+//       "default-src 'self'",
+//       "font-src 'self' https://fonts.gstatic.com",
+//       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+//       "img-src 'self' data:",
+//       "script-src 'self' https://vercel.live",
+//       "script-src-elem 'self' https://vercel.live",
+//       "connect-src 'self' https://vercel.live"
+//     ].join("; ")
+//   );
+//   next();
+// });
 
 
 
@@ -389,18 +389,18 @@ async function run() {
       }
     });
 
-    // app.get('/pets', async (req, res) => {
-    //   try {
-    //     const { purpose } = req.query;
-    //     const query = { status: 'approved' };
-    //     if (purpose) query.purpose = purpose;
-    //     const pets = await petCollection.find(query).toArray();
-    //     res.send(pets);
-    //   } catch (error) {
-    //     console.error("Error fetching pets:", error);
-    //     res.status(500).send({ message: "Failed to fetch pets", error: error.message });
-    //   }
-    // });
+    app.get('/pets', async (req, res) => {
+      try {
+        const { purpose } = req.query;
+        const query = { status: 'approved' };
+        if (purpose) query.purpose = purpose;
+        const pets = await petCollection.find(query).toArray();
+        res.send(pets);
+      } catch (error) {
+        console.error("Error fetching pets:", error);
+        res.status(500).send({ message: "Failed to fetch pets", error: error.message });
+      }
+    });
 
     app.get('/pets/pending', verifyToken, verifyAdmin, async (req, res) => {
       const pending = await petCollection.find({ status: 'pending' }).toArray();
@@ -727,22 +727,6 @@ async function run() {
 run().catch(console.dir);
 
 
-
-app.get('/pets', async (req, res) => {
-  try {
-    await ensureDbConnected();
-    const petCollection = client.db("pawpalaceDB").collection("pet");
-    const { purpose } = req.query;
-    const query = { status: 'approved' };
-    if (purpose) query.purpose = purpose;
-    const pets = await petCollection.find(query).toArray();
-    res.send(pets);
-  } catch (error) {
-    console.error("Error fetching pets (lazy):", error);
-    res.status(500).send({ message: "Failed to fetch pets", error: error.message });
-  }
-});
-
 app.get("/", (req, res) => {
   res.send("PawPalace server running");
 });
@@ -752,9 +736,11 @@ app.get("/test", (req, res) => {
 });
 
 
-if (process.env.NODE_ENV !== "production") {
-  app.listen(5000, () => console.log("Server running locally"));
-}
+// if (process.env.NODE_ENV !== "production") {
+//   app.listen(5000, () => console.log("Server running locally"));
+// }
+
+app.listen(5000, () => console.log("Server running locally"));
 
 
 
