@@ -389,21 +389,18 @@ async function run() {
       }
     });
 
-    // moved /pets out of the run() block so it's always registered
-    app.get('/pets', async (req, res) => {
-      try {
-        await ensureDbConnected();
-        const petCollection = client.db("pawpalaceDB").collection("pet");
-        const { purpose } = req.query;
-        const query = { status: 'approved' };
-        if (purpose) query.purpose = purpose;
-        const pets = await petCollection.find(query).toArray();
-        res.send(pets);
-      } catch (error) {
-        console.error("Error fetching pets (lazy):", error);
-        res.status(500).send({ message: "Failed to fetch pets", error: error.message });
-      }
-    });
+    // app.get('/pets', async (req, res) => {
+    //   try {
+    //     const { purpose } = req.query;
+    //     const query = { status: 'approved' };
+    //     if (purpose) query.purpose = purpose;
+    //     const pets = await petCollection.find(query).toArray();
+    //     res.send(pets);
+    //   } catch (error) {
+    //     console.error("Error fetching pets:", error);
+    //     res.status(500).send({ message: "Failed to fetch pets", error: error.message });
+    //   }
+    // });
 
     app.get('/pets/pending', verifyToken, verifyAdmin, async (req, res) => {
       const pending = await petCollection.find({ status: 'pending' }).toArray();
@@ -728,6 +725,23 @@ async function run() {
 }
 
 run().catch(console.dir);
+
+
+
+app.get('/pets', async (req, res) => {
+  try {
+    await ensureDbConnected();
+    const petCollection = client.db("pawpalaceDB").collection("pet");
+    const { purpose } = req.query;
+    const query = { status: 'approved' };
+    if (purpose) query.purpose = purpose;
+    const pets = await petCollection.find(query).toArray();
+    res.send(pets);
+  } catch (error) {
+    console.error("Error fetching pets (lazy):", error);
+    res.status(500).send({ message: "Failed to fetch pets", error: error.message });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("PawPalace server running");
