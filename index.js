@@ -21,15 +21,17 @@ app.use((req, res, next) => {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "font-src https://fonts.gstatic.com",
+      "font-src 'self' https://fonts.gstatic.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data:",
-      "script-src 'self'",
-      "connect-src 'self'"
+      "script-src 'self' https://vercel.live",
+      "script-src-elem 'self' https://vercel.live",
+      "connect-src 'self' https://vercel.live"
     ].join("; ")
   );
   next();
 });
+
 
 
 // MongoDB connection URI (keep your existing)
