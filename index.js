@@ -713,10 +713,10 @@ app.get("/", (req, res) => {
 module.exports = app;
 
 // ✅ Run locally only
-if (require.main === module) {
-  const port = 5000;
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-  });
-}
+// if (require.main === module) {
+//   const port = 5000;
+//   app.listen(port, () => {
+//     console.log(`Server running on port ${port}`);
+//   });
+// }
 
