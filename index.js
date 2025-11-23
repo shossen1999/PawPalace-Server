@@ -1,4 +1,4 @@
-
+//index.js
 const express = require("express");
 const cors = require("cors");
 const jwt = require('jsonwebtoken');
@@ -12,16 +12,9 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const app = express();
 
+// This cors i updated by accessing inside code
 app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://paw-palace-4dac4.web.app"
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
+  cors()
 );
 
 app.use(express.json());
@@ -706,11 +699,11 @@ app.get("/", (req, res) => {
   res.send("PawPalace server running");
 });
 
-// app.listen(port, () => {
-//   console.log(`Server running on port: ${port}`);
-// });
+app.listen(port, () => {
+  console.log(`Server running on port: ${port}`);
+});
 // ✅ Export for Vercel Serverless Functions
-module.exports = app;
+// module.exports = app;
 
 // ✅ Run locally only
 // if (require.main === module) {
