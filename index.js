@@ -116,6 +116,21 @@ function dedupeVaccinationsArray(vaccinations = []) {
   return unique;
 }
 
+// Add this before run()
+let _dbConnected = false;
+async function ensureDbConnected() {
+  if (_dbConnected) return;
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+    _dbConnected = true;
+    console.log("MongoDB connected (lazy)");
+  } catch (err) {
+    console.error("MongoDB lazy connect failed:", err);
+    throw err;
+  }
+}
+
 // Main run
 async function run() {
   try {
@@ -360,6 +375,8 @@ async function run() {
 
     app.get('/pets', async (req, res) => {
       try {
+        await ensureDbConnected();
+        const petCollection = client.db("pawpalaceDB").collection("pet");
         const { purpose } = req.query;
         const query = { status: 'approved' };
         if (purpose) query.purpose = purpose;
@@ -694,6 +711,24 @@ async function run() {
 }
 
 run().catch(console.dir);
+
+
+
+// Then move /pets route OUTSIDE run() (after run().catch):
+app.get('/pets', async (req, res) => {
+  try {
+    await ensureDbConnected();
+    const petCollection = client.db("pawpalaceDB").collection("pet");
+    const { purpose } = req.query;
+    const query = { status: 'approved' };
+    if (purpose) query.purpose = purpose;
+    const pets = await petCollection.find(query).toArray();
+    res.send(pets);
+  } catch (error) {
+    console.error("Error fetching pets:", error);
+    res.status(500).send({ message: "Failed to fetch pets", error: error.message });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("PawPalace server running");
