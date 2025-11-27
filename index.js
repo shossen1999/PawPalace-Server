@@ -116,21 +116,6 @@ function dedupeVaccinationsArray(vaccinations = []) {
   return unique;
 }
 
-// Add this before run()
-let _dbConnected = false;
-async function ensureDbConnected() {
-  if (_dbConnected) return;
-  try {
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    _dbConnected = true;
-    console.log("MongoDB connected (lazy)");
-  } catch (err) {
-    console.error("MongoDB lazy connect failed:", err);
-    throw err;
-  }
-}
-
 // Main run
 async function run() {
   try {
@@ -712,7 +697,20 @@ async function run() {
 
 run().catch(console.dir);
 
-
+// Add this before run()
+let _dbConnected = false;
+async function ensureDbConnected() {
+  if (_dbConnected) return;
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+    _dbConnected = true;
+    console.log("MongoDB connected (lazy)");
+  } catch (err) {
+    console.error("MongoDB lazy connect failed:", err);
+    throw err;
+  }
+}
 
 // Then move /pets route OUTSIDE run() (after run().catch):
 app.get('/pets', async (req, res) => {
