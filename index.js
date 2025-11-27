@@ -283,7 +283,7 @@ async function run() {
     // ======================
     // Users Endpoints
     // ======================
-    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+    app.get('/users', async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
     });
